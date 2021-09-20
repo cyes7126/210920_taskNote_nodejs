@@ -8,6 +8,7 @@ socket.io를 사용하여 업무목록을 관리합니다.
 
 ### 미리보기
 ![AnyConv com__업무리스트관리3](https://user-images.githubusercontent.com/46583544/134011065-a46ef678-e5c4-4fbb-b9e2-6507738285cb.gif)
+![ezgif com-gif-maker](https://user-images.githubusercontent.com/46583544/134018603-fd0e6135-753d-4106-86c6-04eaec086d3e.gif)
 * 위: 웨일브라우저, 아래: 크롬브라우저 사용했습니다.
 * * *
 
