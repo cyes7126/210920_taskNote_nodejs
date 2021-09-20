@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <title>TASK NOTE</title>
+    <!--소켓io CDN을 통해 라이브러리에 연결-->
+    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+</head>
+<style>
+    *{
+        background-color:#6485c3;
+        font-size: 14px;
+    }
+    .head{
+        color:white;
+        padding: 10px;
+    }
+    .container{
+        height: 100vh;
+        
+    }
+    .row{
+        width: 250px;
+        margin:3px;
+        display:inline-block;
+        vertical-align:top;
+    }
+    .row div{
+        padding:5px;
+    }
+    .row .add-input{
+        background-color: #cedffe;
+        border-radius: 5px;
+    }
+    .row .add-input>*{
+        margin:3px;
+        background-color: inherit;
+    }
+    .row .card-list{
+        padding:0px;
+    }
+    .row .card-list>*{
+        margin:3px 0px;
+        background-color: inherit;
+    }
+    .row .add-input input{
+        width:223px;
+        background-color: #bed4fe;
+        border: 1px solid #adc9fd;
+        padding: 5px;
+    }
+    .row .add-input a{
+        display: inline-block;
+    }
+    .row .card{
+        background-color: #adc9fd !important;
+    }
+    .row .card:hover{
+        background-color: #a1b5db !important;
+    }
+    .row .add-title{
+        color: #eff4ff;
+        background-color: #778296;
+        font-size: 20px;
+    }
+    .btn{
+        width: 36px;
+        background-color: #009ba6 !important;
+        border-radius: 3px;
+        padding: 4px;
+        text-align: center;
+        color: #ffffff;
+    }
+    .blind{
+        visibility: hidden;
+    }
+    .pointer{
+        cursor: pointer;
+    }
+    .title {
+        font-size: 20px;
+        font-weight: 600;
+    }
+    .prev-drop{
+        width:224px;
+        height: 17px;
+        background-color: #77839a !important;
+    }
+</style>
+<body>
+    <div class="head">웹 프론트엔드 과제</div>
+    <div class="container">
+        <div class="row" data-row="0" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <div class="add-title pointer" onClick="addRow(this)">Add a list...</div>
+        </div>
+
+    </div>
+</body>
+<script>
+    //소켓 이벤트 : 모든 브라우저에 동일한 화면이 보이도록 함.
+    var socket = io('http://localhost:3000/');
+    socket.emit('join_room');
+
+    //열의 제목을 입력하는 input창 생성
+    socket.on('addRow', function(data){
+        document.querySelector(".row[data-row='"+data.row+"']").innerHTML = '<div class="add-input">'+getHtml('addTitle')+'</div>';
+    });
+
+    //입력한 열의 제목을 표시하고, 오른쪽에 열추가
+    socket.on('setTitle',function(data){
+        var row = document.querySelector(".row[data-row='"+data.row+"']");
+        row.querySelector(".add-input").innerHTML = getHtml('setTitle',data.title)+getHtml('addCard');
+        row.parentElement.insertAdjacentHTML("beforeend", getHtml('addRow'));//열추가
+    });
+
+    //항목(카드)를 입력하는 input창 생성
+    socket.on('addCard', function(data){
+        var row = document.querySelector(".row[data-row='"+data.row+"']");
+        row.querySelector(".add-card").remove();
+        row.querySelector(".add-input").insertAdjacentHTML("beforeend", getHtml('addCardInput'));
+
+    });
+    //입력한 항목(카드)를 열에 추가함
+    socket.on('addCardInput',function(data){
+        var row = document.querySelector(".row[data-row='"+data.row+"']");
+        row.querySelectorAll('.add').forEach(function(rTarget){
+            rTarget.remove();
+        });
+        if(row.querySelector('.card-list')){
+            row.querySelector('.card-list').insertAdjacentHTML("beforeend", getHtml('setCard', {seq:row.querySelectorAll('.card').length, title:data.title}));
+            row.querySelector('.add-input').insertAdjacentHTML("beforeend",getHtml('addCard'));
+        }else{
+            row.querySelector('.add-input').insertAdjacentHTML("beforeend", '<div class="card-list">'+getHtml('setCard', {seq:row.querySelectorAll('.card').length, title:data.title})+'</div>'+getHtml('addCard'));
+        }
+    });
+
+    //입력창을 닫음
+    socket.on('removeInput', function(data){
+        var row = document.querySelector(".row[data-row='"+data.row+"']");
+        if(data.type == 'title'){
+            row.querySelector('.add-input').remove();
+            row.insertAdjacentHTML("beforeend",'<div class="add-title pointer" onClick="addRow(this)">Add a list...</div>');
+        }else{
+            row.querySelectorAll('.add').forEach(function(rTarget){
+                rTarget.remove();
+            });
+            row.querySelector('.add-input').insertAdjacentHTML("beforeend",getHtml('addCard'));
+        }
+    });
+    
+    //항목(카드)를 드래그->드롭시에 항목의 위치변경
+    socket.on('drop', function(data){
+        var fromRow = document.querySelector(".row[data-row='"+data.fromRow+"']");
+        var toRow = document.querySelector(".row[data-row='"+data.toRow+"']");
+
+        if(data.position == 'nocard'){
+            toRow.querySelector(".card-list").appendChild(fromRow.querySelector('.card[data-seq="'+data.fromSeq+'"'));
+        }else{
+            if(data.position == 'after'){
+                toRow.querySelector('.card[data-seq="'+data.toSeq+'"').after(fromRow.querySelector('.card[data-seq="'+data.fromSeq+'"'));
+            }else{
+                toRow.querySelector('.card[data-seq="'+data.toSeq+'"').before(fromRow.querySelector('.card[data-seq="'+data.fromSeq+'"'));
+            }
+        }     
+    });
+
+    //name에 맞는 html을 반환
+    function getHtml(name, data=0){
+        switch(name){
+            case 'addRow':
+                return '<div class="row" data-row="'+document.querySelectorAll('.row').length+'" ondrop="drop(event)" ondragover="allowDrop(event)"><div class="add-title pointer" onClick="addRow(this)">Add a list...</div></div>';
+            case 'addTitle':
+                return '<input type="text" class="add" placeholder="Add a list..." onkeypress="keypressTitle(event)"/><a class="btn add" onClick="setTitle(this)">Save</a><a class="add" onClick="removeInput(this, \'title\')">X</a>';
+            case 'setTitle':
+                return '<div class="title">'+data+'</div><div class="card-list"></div>';
+            case 'addCardInput':
+                return '<input class="add" type="text" onkeypress="keypressTitle(event)"/><a class="btn add" onClick="addCardInput(this)">Save</a><a class="add" onClick="removeInput(this, \'card\')">X</a>';
+            case 'setCard':
+                return '<div class="card" data-seq="'+data.seq+'" ondragstart="dragStart(this)" draggable="true" ondragend="dragEnd(this)">'+data.title+'</div>';
+            case 'addCard':
+                return '<div class="add-card pointer" onClick="addCard(this)">Add a Card...</div>';
+        }
+    }
+
+    //onclick 이벤트 : 다른 브라우저에 적용하기 위해 main.js로 데이터 넘겨줌.
+    function addRow(e){
+        socket.emit('reqEvt', {evtName:'addRow', row:e.parentNode.dataset.row});
+    }
+
+    function setTitle(e){
+        if(e.previousElementSibling.value == '') return;
+        socket.emit('reqEvt', {evtName:'setTitle', row:e.closest('.row').dataset.row, title:e.previousElementSibling.value});
+    }
+
+    function addCard(e){
+        socket.emit('reqEvt', {evtName:'addCard', row:e.closest('.row').dataset.row});
+    }
+
+    function addCardInput(e){
+        if(e.previousElementSibling.value == '') return;
+        socket.emit('reqEvt', {evtName:'addCardInput', row:e.closest('.row').dataset.row, title:e.previousElementSibling.value});
+    }
+
+    function removeInput(e, type){
+        socket.emit('reqEvt', {evtName:'removeInput', row:e.closest('.row').dataset.row, type:type});
+    }
+
+    //input에서 enter누르면 btn을 클릭한것과 동일하게 작동
+    function keypressTitle(e){
+        if(e.code == "Enter"){
+            e.target.nextElementSibling.onclick();
+        }
+    }
+    
+    //드래그&드롭 처음 시작할때 이동시키려는 항목의 값을 저장함
+    function dragStart(e) {
+        event.dataTransfer.setData("seq", e.dataset.seq);
+        event.dataTransfer.setData("row", e.closest('.row').dataset.row);
+        event.dataTransfer.dropEffect = "move";
+    }
+
+    //드래그&드롭이 끝나기전 위치값이 이동할때 드롭시 적용될 위치를 화면에 표시해줌(prev-drop)
+    function allowDrop(e) {
+        e.preventDefault();
+        if(e.target.classList.contains('prev-drop')) return;
+        var html = document.createElement('template');
+        html.innerHTML = '<div class="prev-drop"></div>';
+        html = html.content.firstChild;
+        if(document.querySelector('.prev-drop')){
+            document.querySelectorAll('.prev-drop').forEach(function(prev){
+                prev.remove();
+            });
+        };
+
+        var closeCard = e.target.closest('.card');
+        if(closeCard){
+            if(e.clientY >closeCard.getBoundingClientRect().top){
+                closeCard.after(html);
+            }else{
+                closeCard.before(html);
+            }
+        }else{//등록된 항목(카드)가 1개도 없을 경우 상위노드에 appendChild
+            document.querySelector(".row[data-row='"+e.target.closest('.row').dataset.row+"']").querySelector(".card-list").appendChild(html);
+        }
+    }
+
+    //드래그&드롭에서 드롭을 했을때 socket에 타겟과 위치를 전달
+    function drop(e) {
+        e.preventDefault();
+        var closeCard = e.target.closest('.card');
+        if(closeCard){
+            if(e.clientY >closeCard.getBoundingClientRect().top){
+                var position = 'after';
+            }else{
+                var position = 'before';
+            } 
+            socket.emit('reqEvt', {evtName:'drop', fromSeq:e.dataTransfer.getData("seq"), fromRow:e.dataTransfer.getData("row"), toSeq:closeCard.dataset.seq, toRow:closeCard.closest('.row').dataset.row, position:position});
+        }else{//등록한 항목 없을때
+            var position = 'nocard';
+            socket.emit('reqEvt', {evtName:'drop', fromSeq:e.dataTransfer.getData("seq"), fromRow:e.dataTransfer.getData("row"), toSeq:0, toRow:e.target.closest('.row').dataset.row, position:position});
+        }
+    }
+
+    //드래그&드롭 끝날 때 prev-drop을 모두 지움
+    function dragEnd(e){
+        document.querySelectorAll('.prev-drop').forEach(function(prev){
+            prev.remove();
+        });
+    }
+</script>
